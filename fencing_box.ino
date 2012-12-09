@@ -1,9 +1,15 @@
 /*
-  Epee fencing box demo.
+  fencing box demo.
 */
 
 int red = 9;
 int green = 10;
+
+int off_red = 11;
+int off_green = 12; 
+
+int power_light = 13;
+
 int lighton = 2000;
 
 int f1_p0 = A5;
@@ -15,11 +21,15 @@ int f2_p1 = A1;
 int f2_p2 = A0;
 
 int workflow = 0;
-boolean f1;
-boolean f2;
+boolean hit_f1 = false;
+boolean hit_f2 = false;
+int f1[2] = {1, 1};
+int f2[2] = {1, 1};
 
 int lockTime = 0;
 int showTime = 0;
+
+int weapon = 1; // 0 = epee, 1 = foil, 2 = sabre
 
 // the setup routine runs once when you press reset:
 void setup() {                
@@ -27,7 +37,17 @@ void setup() {
   setupLights();
   test();
   
-  setupEpee();
+  pinMode(power_light, OUTPUT);
+  digitalWrite(power_light, HIGH);
+  
+  switch(weapon) {
+    case 0:
+      epee_setup();
+      break;
+     case 1:
+      foil_setup();
+      break;
+  }
   Serial.begin(9600);
 }
 
@@ -49,80 +69,42 @@ void loop() {
 }
 
 void test() {
-  digitalWrite(red, HIGH);
-  digitalWrite(green, HIGH);
+  lightsOn(f1, green, off_green);
+  lightsOn(f2, red, off_red);
   delay(lighton);
-  digitalWrite(red, LOW);
-  digitalWrite(green, LOW);
+  resetAll();
 }
 
 void setupLights() {
   pinMode(green, OUTPUT);
   pinMode(red, OUTPUT);
-}
-
-void setupEpee() {
-  pinMode(f1_p0, OUTPUT);
-  pinMode(f1_p1, INPUT_PULLUP);
-  pinMode(f1_p2, INPUT_PULLUP);
-  
-  digitalWrite(f1_p0, LOW);
-  digitalWrite(f1_p1, HIGH);
-  digitalWrite(f1_p2, HIGH);
-  
-  pinMode(f2_p0, OUTPUT);
-  pinMode(f2_p1, INPUT_PULLUP);
-  pinMode(f2_p2, INPUT_PULLUP);
+  pinMode(off_red, OUTPUT);
+  pinMode(off_green, OUTPUT);
 }
 
 void wait() {
-  f1 = f1_hit();
-  f2 = f2_hit();
-  
-  if (f1 || f2) {
-    if (f1) {
-      leftOn();
+      switch(weapon) {
+      case 0:
+        epee_wait();
+        break;
+      case 1:
+        foil_wait();
+        break;
     }
-    
-    if (f2) {
-      rightOn();
-    }
-    
-    lockTime = 50;
-    Serial.println("Workflow wait() -> lock()");
-    workflow = 1;
-  }
 }
 
 void lock() {
-  int f1_now = f1_hit();
-  int f2_now = f2_hit();
-  
-  if (f1 && !f2 && f2_now) {
-    f2 = true;
-    rightOn();
-    Serial.println("Workflow lock() -> show()");
-    workflow = 2;
-  }
-  if (f2 && !f1 && f1_now) {
-    f1 = true;
-    leftOn();
-    Serial.println("Workflow lock() -> show()");
-    workflow = 2;
-  }
-  
-  lockTime = lockTime - 1;
-  
-  if (lockTime < 0) {
-    Serial.println("Workflow lock() -> show()");
-    workflow = 2;
-  }
-  
-  showTime = 2000;
+      switch(weapon) {
+      case 0:
+        epee_lock();
+        break;
+      case 1:
+        foil_lock();
+        break;
+    }
 }
 
 void show() {
-  
   showTime = showTime - 1;
   
   if (showTime < 0) {
@@ -132,30 +114,38 @@ void show() {
   }
 }
 
-boolean f1_hit() {
-  int f1_hit = digitalRead(f1_p1); 
-  return f1_hit == 0;
+void lightsOn(int fencer[], int hit, int off) {
+  if (fencer[0] == 1) {
+    digitalWrite(hit, HIGH);
+  }
+  if (fencer[1] == 1) {
+    digitalWrite(off, HIGH);
+  }
 }
 
-boolean f2_hit() {
-  int f2_hit = digitalRead(f2_p1);
-  return f2_hit == 0;
-}
-
-void leftOn() {
-  digitalWrite(green, HIGH);
-}
-
-void rightOn() {
-  digitalWrite(red, HIGH);
+void setup_fencer(int p0, int p1, int p2, boolean s0, boolean s1, boolean s2) {
+  pinMode(p0, s0 ? INPUT : OUTPUT);
+  pinMode(p1, s1 ? INPUT : OUTPUT);
+  pinMode(p2, s2 ? INPUT : OUTPUT);
+  
+  digitalWrite(p0, s0 ? LOW : HIGH);
+  digitalWrite(p1, s1 ? LOW : HIGH);
+  digitalWrite(p2, s2 ? LOW : HIGH);
 }
 
 void resetAll() {
       // Reset Lights.
       digitalWrite(green, LOW);
       digitalWrite(red, LOW);
+      digitalWrite(off_red, LOW);
+      digitalWrite(off_green, LOW);
       
       // Reset Fencers.
-      f1 = false;
-      f2 = false;
+      resetFencer(f1);
+      resetFencer(f2);
+}
+
+void resetFencer(int fencer[]) {
+  fencer[0] = 0;
+  fencer[1] = 0;
 }
